@@ -14,3 +14,4 @@ Two Main Paths:
 [ ] Attach to the systemctl process. 
 [ ] Add try-catch to catch the exceptions.
 [ ] Improve Error Logging.
+[ ] Grab the filename from the URL - Add security.
