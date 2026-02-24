@@ -29,3 +29,11 @@ Two Main Paths:
 
 1. Go the project folder
 2. `./bin/main` 
+
+
+####
+Supports : 
+
+- [ ] Linux
+- [ ] Windows
+- [ ] MacOS
