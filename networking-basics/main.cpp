@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <iostream>
+#include <libgen.h>
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <stdio.h>
@@ -7,10 +8,46 @@
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <vector>
 
 using json = nlohmann::json;
-using std::string, std::vector, std::cout;
+using std::string, std::cout;
+
+string readFile(string fileName) {
+  // 1. Open file and check if it exists
+  FILE *file = std::fopen(fileName.c_str(), "rb");
+  if (!file) {
+    perror("File open failed");
+    return "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+  }
+
+  // 2. Get file size
+  std::fseek(file, 0, SEEK_END);
+  long fileSize = ftell(file);
+  rewind(file);
+
+  // 3. Prepare the HTTP header string first
+  string header = "HTTP/1.1 200 OK\r\n"
+                  "Content-Type: image/webp\r\n"
+                  "Content-Length: " +
+                  std::to_string(fileSize) +
+                  "\r\n"
+                  "Connection: close\r\n"
+                  "\r\n";
+
+  // 4. Create a string that contains the header
+  string message = header;
+
+  // 5. Resize message to hold header + file data
+  size_t headerSize = message.size();
+  message.resize(headerSize + fileSize);
+
+  // 6. Read the file data directly into the string's buffer
+  // &message[headerSize] points to the spot immediately after the headers
+  std::fread(&message[headerSize], 1, fileSize, file);
+
+  std::fclose(file);
+  return message;
+}
 
 json getBasicRequestInfo(char buffer[]) {
   string line;
@@ -32,7 +69,11 @@ json getBasicRequestInfo(char buffer[]) {
   return jsonReq;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+  char *path_to_binary = strdup(argv[0]);
+  char *directory = dirname(path_to_binary);
+  chdir(directory);
+
   int my_socket = socket(AF_INET, SOCK_STREAM, 0);
 
   int opt = 1;
@@ -75,22 +116,28 @@ int main() {
         "<html><body><h1>HI OM</h1></body></html>";
 
     string pageNotFound =
-        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n\n"
+        "HTTP/1.1 404 OK\r\nContent-Type: text/html\r\n\r\n\n"
         "<html><body><h1>PAGE NOT FOUND. ERROR 404</h1></body></html>";
 
-    if (method == "GET") {
-      if (url == "/") {
+    string falseRequest =
+        "HTTP/1.1 403 OK\r\nContent-Type: text/plain\r\n\r\n\n"
+        "Access Denied";
+
+    if (url == "/") {
+      if (method == "GET") {
         message = mainHTMLResponse;
       } else {
-        message = pageNotFound;
+        message = falseRequest;
+      }
+    } else if (url == "/monkey") {
+      if (method == "GET") {
+        message = readFile("./assets/monkey.webp");
       }
     } else {
-      message = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n\nNot a "
-                "correct METHOD.";
+      message = pageNotFound;
     }
 
     send(client_socket, message.c_str(), message.length(), 0);
-
     cout << "Message Sent. Closing now. Waiting for the next client...\n\n";
     close(client_socket);
   }
