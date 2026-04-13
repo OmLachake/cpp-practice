@@ -34,6 +34,6 @@ Two Main Paths:
 ####
 Supports : 
 
-- [ ] Linux
+- [x] Linux
 - [ ] Windows
 - [ ] MacOS
